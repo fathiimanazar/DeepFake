@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepFake Detetion | ResNet</title>
+</head>
+
+<style>
+    /* Snackbar toast */
+
+    #snackbar {
+        visibility: hidden;
+        min-width: 250px;
+        margin-left: -125px;
+        background-color: #101010bd;
+        color: #fff;
+        text-align: center;
+        border-radius: 2px;
+        padding: 7px;
+        position: fixed;
+        z-index: 9999;
+        left: 50%;
+        bottom: 30px;
+        font-size: 14px;
+    }
+
+    #snackbar p {
+        color: #fff !important;
+    }
+
+    #snackbar.show {
+        visibility: visible;
+        -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    }
+
+    @-webkit-keyframes fadein {
+        from {
+            bottom: 0;
+            opacity: 0;
+        }
+
+        to {
+            bottom: 30px;
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadein {
+        from {
+            bottom: 0;
+            opacity: 0;
+        }
+
+        to {
+            bottom: 30px;
+            opacity: 1;
+        }
+    }
+
+    @-webkit-keyframes fadeout {
+        from {
+            bottom: 30px;
+            opacity: 1;
+        }
+
+        to {
+            bottom: 0;
+            opacity: 0;
+        }
+    }
+
+    @keyframes fadeout {
+        from {
+            bottom: 30px;
+            opacity: 1;
+        }
+
+        to {
+            bottom: 0;
+            opacity: 0;
+        }
+    }
+
+    /* Snackbar toast */
+
+    button i {
+        margin-left: 5px;
+    }
+</style>
+
+
+<style>
+    *,
+    *:before,
+    *:after {
+        box-sizing: border-box;
+    }
+
+    @-webkit-keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    body,
+    html {
+        min-height: 100vh;
+        background: #666;
+        font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif;
+        font-weight: 300;
+    }
+
+    .table {
+        display: table;
+        width: 100%;
+        height: 100vh;
+        position: absolute;
+    }
+
+    .table-cell {
+        display: table-cell;
+        vertical-align: middle;
+    }
+
+    .modal {
+        width: 400px;
+        height: 500px;
+        margin: 0 auto;
+        background: #fff;
+        box-shadow: 0 40px 50px rgba(0, 0, 0, 0.35);
+        padding: 40px;
+    }
+
+    #mediaFile {
+        position: absolute;
+        top: -1000px;
+    }
+
+    #profile {
+        border-radius: 100%;
+        width: 200px;
+        height: 200px;
+        margin: 0 auto;
+        position: relative;
+        top: -80px;
+        margin-bottom: -80px;
+        cursor: pointer;
+        background: #f4f4f4;
+        display: table;
+        background-size: cover;
+        background-position: center center;
+        box-shadow: 0 5px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    #profile .dashes {
+        position: absolute;
+        top: 0;
+        left: 0;
+        border-radius: 100%;
+        width: 100%;
+        height: 100%;
+        border: 4px dashed #ddd;
+        opacity: 1;
+    }
+
+    #profile label {
+        display: table-cell;
+        vertical-align: middle;
+        text-align: center;
+        padding: 0 30px;
+        color: grey;
+        opacity: 1;
+    }
+
+    #profile.dragging {
+        background-image: none !important;
+    }
+
+    #profile.dragging .dashes {
+        -webkit-animation-duration: 10s;
+        animation-duration: 10s;
+        -webkit-animation-name: spin;
+        animation-name: spin;
+        -webkit-animation-iteration-count: infinite;
+        animation-iteration-count: infinite;
+        -webkit-animation-timing-function: linear;
+        animation-timing-function: linear;
+        opacity: 1 !important;
+    }
+
+    #profile.dragging label {
+        opacity: 0.5 !important;
+    }
+
+    #profile.hasImage .dashes,
+    #profile.hasImage label {
+        opacity: 0;
+        pointer-events: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+
+    h1 {
+        text-align: center;
+        font-size: 28px;
+        font-weight: normal;
+        letter-spacing: 1px;
+    }
+
+    .stat {
+        width: 50%;
+        text-align: center;
+        float: left;
+        padding-top: 20px;
+        border-top: 1px solid #ddd;
+    }
+
+    .stat .label {
+        font-size: 11px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .stat .num {
+        font-size: 21px;
+        padding: 3px 0;
+    }
+
+    .editable {
+        position: relative;
+    }
+
+    .editable i {
+        position: absolute;
+        top: 10px;
+        right: -20px;
+        opacity: 0.3;
+    }
+
+    button {
+        width: 100%;
+        -webkit-appearance: none;
+        line-height: 40px;
+        color: #fff;
+        border: none;
+        background-color: #ea4c89;
+        margin-top: 30px;
+        font-size: 13px;
+        -webkit-font-smoothing: antialiased;
+        font-weight: bold;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+
+        cursor: pointer;
+    }
+
+    #clear_image {
+        background-color: transparent;
+        color: #ea4c89;
+        border: 1px solid #ea4c89;
+    }
+
+    #result {
+        display: none;
+    }
+</style>
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+
+<body>
+
+
+
+    <form action="predict" id="form" name="form" enctype="multipart/form-data" method="post">
+
+        <div class="table">
+            <div class="table-cell">
+                <div class="modal">
+                    <div id="profile">
+                        <div class="dashes"></div>
+                        <label>Click to browse an image</label>
+                    </div>
+                    <div class="editable">
+                        <h1 contenteditable>ResNet50</h1>
+                    </div>
+                    <div id="result">
+                        <div class="stat">
+                            <div class="label">Real</div>
+                            <div id="real" class="num">
+                                <i class="fa fa-check"></i>
+                            </div>
+                        </div>
+                        <div class="stat">
+                            <div class="label">Fake</div>
+                            <div id="fake" class="num">
+                                <i class="fa fa-times"></i>
+
+                            </div>
+                        </div>
+                    </div>
+                    <button id="submit_form">Predict</button>
+                    <button id="clear_image">Clear</button>
+                </div>
+            </div>
+        </div>
+        <input type="file" name="photo" id="mediaFile" />
+
+
+    </form>
+
+
+    <div id="snackbar">Message</div>
+
+    <script>
+
+        const mediaFile = document.getElementById('mediaFile');
+        const profile = document.getElementById('profile');
+
+        let image_clear = document.getElementById('clear_image');
+        let submit_form = document.getElementById('submit_form');
+
+        const response_msg = document.getElementById('result');
+
+
+        const real = document.getElementById('real');
+        const fake = document.getElementById('fake');
+
+
+        const tick = '<i class="fa fa-check"></i>';
+        const wrong = '<i class="fa fa-times"></i>';
+
+
+        profile.addEventListener('click', (e) => {
+            mediaFile.click();
+        });
+
+
+
+        mediaFile.addEventListener('change', (e) => {
+
+            // document.getElementById('upload-file-data').style.display = 'none';
+
+            var allowedTypes = ['image/jpeg', 'image/png', 'image/jpg',];
+            const file = e.target.files[0];
+
+            if (file) {
+
+                const fileType = file.type;
+
+                if (!allowedTypes.includes(fileType)) {
+
+                    BottomToast('This extension is not allowed');
+                    return false;
+                }
+
+
+
+
+                profile.style.backgroundImage = "url(" + window.URL.createObjectURL(file) + ")";
+                profile.classList.add('hasImage');
+                BottomToast('File successfully selected');
+
+            } else {
+                BottomToast('No file is selected');
+                return false;
+            }
+
+
+            return true;
+
+        });
+
+
+
+        image_clear.addEventListener('click', (e) => {
+            mediaFile.value = null;
+
+
+            profile.style.backgroundImage = "";
+            profile.classList.remove('hasImage');
+
+
+            BottomToast('Image cleared');
+
+        });
+
+
+
+
+        function BottomToast(message = 'Welcome !') {
+            document.getElementById('snackbar').classList.add("show");
+            document.getElementById('snackbar').innerText = message;
+
+            setTimeout(function () {
+                document.getElementById('snackbar').classList.remove("show");
+            }, 3000);
+        }
+
+
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            response_msg.style.display = 'none';
+            submit_form.style.display = 'none';
+            await uploadData(e.target);
+            submit_form.style.display = 'block';
+
+
+        });
+
+        async function uploadData(target) {
+            const response = await fetch(target.action, {
+                method: "POST",
+                body: new FormData(target)
+            });
+
+            if (!response.ok) {
+                alert('Something went wrong,Please try again');
+                return;
+            }
+
+            const fetch_response = await response.json();
+
+
+            response_msg.style.display = "block"
+            real.innerHTML = (fetch_response.status_msg == "Real") ? tick : wrong;
+            fake.innerHTML = (fetch_response.status_msg == "Fake") ? tick : wrong;
+
+
+
+        }
+
+    </script>
+
+
+</body>
+
+</html>
